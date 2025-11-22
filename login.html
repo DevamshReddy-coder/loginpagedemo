@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Login Page</title>
+<style>
+  body{font-family:Arial;background:#f4f4f4;display:flex;align-items:center;justify-content:center;height:100vh}
+  .container{background:#fff;padding:28px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.08);width:420px}
+  h2{text-align:center;margin-bottom:16px}
+  input{width:100%;padding:10px;margin:8px 0;border:1px solid #ddd;border-radius:6px}
+  button{width:100%;padding:12px;border-radius:6px;border:none;background:#007bff;color:#fff;font-size:15px;cursor:pointer}
+  #msg{margin-top:12px;text-align:center}
+  .success{color:green}
+  .error{color:#d9534f}
+  .userbox{background:#f9f9f9;padding:12px;border-radius:6px;margin-top:12px}
+  pre{white-space:pre-wrap;word-wrap:break-word;}
+</style>
+</head>
+<body>
+  <div class="container">
+    <h2>Login</h2>
+    <input id="email" type="email" placeholder="Email" />
+    <input id="password" type="password" placeholder="Password" />
+    <button id="btn" onclick="login()">Login</button>
+    <p id="msg"></p>
+
+    <div id="userDetails" class="userbox" style="display:none">
+      <h3>User details (from server)</h3>
+      <pre id="userPre"></pre>
+    </div>
+  </div>
+
+<script>
+const base = window.location.origin !== 'null' ? window.location.origin : 'http://localhost:3000';
+
+function show(text, ok=true){
+  const el = document.getElementById('msg');
+  el.textContent = text;
+  el.className = ok ? 'success' : 'error';
+}
+
+async function login(){
+  const btn = document.getElementById('btn');
+  btn.disabled = true;
+  show('Logging in...', true);
+
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+
+  if(!email || !password){
+    show('Email and password required', false);
+    btn.disabled = false;
+    return;
+  }
+
+  try {
+    const res = await fetch(`${base}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      show(data.error || 'Login failed', false);
+      console.error('Login failed', data);
+      btn.disabled = false;
+      return;
+    }
+
+    // Save token and display returned user details
+    localStorage.setItem('token', data.token);
+    show('Login successful — token saved', true);
+    document.getElementById('userDetails').style.display = 'block';
+    document.getElementById('userPre').textContent = JSON.stringify(data.user, null, 2);
+    console.log('TOKEN:', data.token);
+
+    // Also fetch canonical profile from /api/profile to confirm last_login from DB
+    const profileRes = await fetch(`${base}/api/profile`, {
+      headers: { 'Authorization': 'Bearer ' + data.token }
+    });
+    if (profileRes.ok) {
+      const p = await profileRes.json();
+      document.getElementById('userPre').textContent = JSON.stringify(p.user, null, 2);
+    } else {
+      console.warn('Could not fetch profile', profileRes.status);
+    }
+
+    btn.disabled = false;
+  } catch (err) {
+    console.error(err);
+    show('Network or server error — check console', false);
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
