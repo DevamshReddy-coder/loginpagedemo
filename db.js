@@ -1,16 +1,12 @@
-// db.js (this is the correct file used by auth.js and server.js)
+// db.js
 require('dotenv').config();
-const mysql = require('mysql2/promise');
-
-const pool = mysql.createPool({
+const { Pool } = require('pg');
+const pool = new Pool({
   host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT || 5432),
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  port: Number(process.env.DB_PORT || 3306),
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+  max: 10
 });
-
-module.exports = pool;
+module.exports = { query: (text, params) => pool.query(text, params), pool };
